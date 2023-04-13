@@ -41,19 +41,98 @@
 
 ## day33: iss overhead notifier project
 
+# -------------------- MODULES --------------------
+
 """imported requests module"""
 import requests
 
+"""imported datetime module as dt"""
+import datetime as dt
+
+"""imported smptlib module"""
+import smtplib
+
+"""imported random module"""
+import random
+
+"""imported time module"""
+import time
+
+
+# -------------------- MY DATA --------------------
+"""constants"""
+MY_LAT = 21.860285
+MY_LNG = 84.
+
+"""email details"""
+MY_EMAIL = "gpython72@gmail.com"
+PASSWORD = "blxfzquksftguoxk"
+
+receiver = "anshujuly2@gmail.com"
+
+
+# -------------------- ISS DATA --------------------
 """variable to store the response"""
-response = requests.get(url="http://api.open-notify.org/iss-now.json")
-response.raise_for_status()
+responseIss = requests.get(url="http://api.open-notify.org/iss-now.json")
+responseIss.raise_for_status()
 
 """variable to store the data"""
-data = response.json()
+dataIss = responseIss.json()
 
 """iss' latitude and longitude"""
-latitude = data["iss_position"]["latitude"]
-longitude = data["iss_position"]["longitude"]
-issPosition = (latitude, longitude)
+issLat = float(dataIss["iss_position"]["latitude"])
+issLng = float(dataIss["iss_position"]["longitude"])
 
-print(issPosition)
+
+# -------------------- SUN DATA --------------------
+"""dictionary to hold the parameters"""
+parameters = {
+    "lat": MY_LAT,
+    "lng": MY_LNG,
+    "formatted": 0
+}
+
+"""variable to store the response for the sun"""
+responseSun = requests.get(url="https://api.sunrise-sunset.org/json", params=parameters)
+responseSun.raise_for_status()
+
+"""variable to hold the data for the sun"""
+dataSun = responseSun.json()
+
+"""variables to hold the sunrise and sunset"""
+sunrise = int(dataSun["results"]["sunrise"].split("T")[1].split(":")[0])
+sunset = int(dataSun["results"]["sunset"].split("T")[1].split(":")[0])
+
+timeNow = dt.datetime.now().hour
+
+
+# -------------------- FACTS ABOUT ISS --------------------
+with open("facts.txt") as file:
+    issFactsList = file.readlines()
+
+
+# -------------------- NOTIFIER --------------------
+"""function to check if iss is overhead"""
+def isIssOverhead():
+    if MY_LAT - 5 <= issLat <= MY_LAT + 5 and MY_LNG - 5 <= issLng <= MY_LNG + 5:
+        return True
+
+"""function to check if it's night"""
+def isNight():
+    if sunset <= timeNow <= sunrise:
+        return True
+
+while True:
+    time.sleep(60)
+    if isIssOverhead() and isNight():
+        with smtplib.SMTP("smtp.gmail.com", port=587, timeout=25) as connection:
+            connection.starttls()
+            connection.login(
+                user=MY_EMAIL,
+                password=PASSWORD
+            )
+            connection.sendmail(
+                from_addr=MY_EMAIL,
+                to_addrs=receiver,
+                msg=f"Subject:Look up, ISS is overhead 🛰️\n\n{random.choice(issFactsList)}".encode("utf-8")
+            )
